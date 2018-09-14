@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+<head>
+    <meta charset="UTF-8">
+    <title>十个要素图层（符号） - TS-GIS客户端 JavaScript SDK 二次开发指南</title>
+    <link rel="stylesheet" type="text/css" href="../vendor/openlayers/ol.css">
+    <script src="../vendor/require.js"></script>
+</head>
+<body>
+<div style="left: 0;">
+    <button onclick="dataLoad()">加载数据</button>
+        <span id="c00" style="display: none">
+              <input id="layer0" type="checkbox" onchange="onchange">
+              <label>危险源</label>
+        </span>
+       <span id="c11" style="display: none">
+             <input id="layer1" type="checkbox" onchange="onchange">
+             <label>防护目标</label>
+       </span>
+        <span id="c22" style="display: none">
+             <input id="layer2" type="checkbox"  onchange="onchange">
+             <label>应急资源</label>
+        </span>
+       <span id="c33" style="display: none">
+             <input id="layer3" type="checkbox"  onchange="onchange">
+             <label>应急物质</label>
+        </span>
+       <span id="c44" style="display: none">
+             <input id="layer4" type="checkbox"  onchange="onchange">
+             <label>应急运输</label>
+        </span>
+
+      <span id="c55" style="display: none">
+             <input id="layer5" type="checkbox"  onchange="onchange">
+             <label>居民地</label>
+        </span>
+       <span id="c66" style="display: none">
+             <input id="layer6" type="checkbox"  onchange="onchange">
+             <label>医疗资源</label>
+        </span>
+
+      <span id="c77" style="display: none">
+             <input id="layer7" type="checkbox"  onchange="onchange">
+             <label>避难场所</label>
+        </span>
+       <span id="c88" style="display: none">
+             <input id="layer8" type="checkbox"  onchange="onchange">
+             <label>宗教设施</label>
+        </span>
+
+       <span id="c99" style="display: none">
+             <input id="layer9" type="checkbox"  onchange="onchange">
+             <label>公共服务</label>
+        </span>
+</div>
+</div>
+<div id="g2map"
+     style="top: 50px; left:120px;; bottom: 0; right:0; position: absolute; width: 100%; background-color: #3cace7;">
+</div>
+
+<script>
+    window.onchange = function (e) {
+        var checked = e.target.checked;
+        var id = e.srcElement.id;
+        var layer = layers[id];
+        layer.setVisible(checked);
+    };
+    var layers = {};
+
+
+    // 为 requirejs（一种 AMD 模块加载器）指定文件别名和文件间的依赖关系
+    require.config({
+        baseUrl: '../vendor/', // 文件查找的基目录，这里指的是
+        // 与 “index.html” 同级的目录下的 vendor 子目录
+        paths: {
+            //第三方组件
+            jquery: 'jquery.min', // ts-gis js sdk 依赖于 jQuery
+            ol: 'openlayers/ol', // 地图显示组件（后续可能会添加Leaflet支持，届时这个引用会变化）
+            proj4: 'proj4', // 坐标转换库
+            echarts: 'echarts.common.min',//图例库
+
+            //TS-GIS组件
+            g2: "ts-gis/g2",
+            gis: "ts-gis/gis",
+            services: 'ts-gis/services'
+        },
+        shim: {
+            // 设置 gis 组件对 g2 组件的依赖关系，
+            gis: {
+                deps: ['g2','jquery']
+            },
+            services: {
+                deps: ['g2', 'gis']
+            }
+        }
+    });
+
+    require(['g2', 'gis', 'services'], function () {
+        // 创建地图对象
+        var g2map = new g2.maps.Map({
+            defaultExtent: {
+                center: [-8071750, 1230330]
+            } // 为方便展示设置视野中心点的范围
+        });
+
+
+        // 初始化地图，传入要初始化的DOM对象的id
+        g2map.init({targetId: 'g2map'});
+
+        // 创建 wms 瓦片图层
+        var tileLayer = new g2.lys.TileLayer({
+            tileType: g2.lys.TileType.WMS,  // wms 瓦片类型
+            layers: "gs:gis_regionalism_province",  // 图层名称
+            url: "http://172.18.24.33:8080/geoserver/gs/wms"  // 图层服务 url
+        });
+
+        //将瓦片图层添加到地图
+        g2map.addLayer(tileLayer);
+
+        //
+        var ajaxhttp = new g2.commu.AjaxHttp({token: 'Bearer d277145'});
+
+        var featureClassService = new g2.gdb.RestFeatureClassService({
+            url: "http://172.18.24.34:8080/fusionGIS/featureClass",
+            deserializer: new g2.lang.Deserializer(),
+            http: ajaxhttp
+        });
+
+
+        function query(filterWhere, layer, index) {
+            //创建过滤器
+            var filter = new g2.gdb.QueryFilter({
+                        subFields: 'objectid',//子字段
+                        where: filterWhere, //查询条件
+                        returnGeometry: true//是否返回几何图形
+                    }
+            );
+
+            featureClassService.query("gis_poi", filter, function (featureSet) {
+                layer.addFeatures(featureSet);
+                var element = document.getElementById('c' + index + index);
+                element.style.display = 'block';
+
+            }, function (data) {
+                console.log("查询失败！");
+            })
+        }
+
+
+        window.dataLoad = function () {
+            for (var i = 0; i < 10; ++i) {
+                var layer = new g2.lys.FeatureLayer({map: g2map, id: 'Layer' + i, visible: false, cache:true});
+                g2map.addLayer(layer);
+                layers['layer' + i] = layer;
+                query("objectid<" + (i + 1) * 10000 + " and objectid>" + i * 10000, layer, i);
+                var markerSymbol = new g2.syms.SimpleMarkersymbol({
+                            fillColor: new g2.syms.Color({a: 255, r: 24 + i * 20, g: 25 + i * 20, b: 255 - i * 20}),
+                            size: 3 + 0.3 * i
+                        }
+                );
+                var SimpleRenderer = new g2.carto.SimpleRenderer({symbol: markerSymbol});
+                layer.render(SimpleRenderer);
+            }
+        }
+
+
+    });
+</script>
+</body>
+</html>
