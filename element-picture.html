@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+<head>
+    <meta charset="UTF-8">
+    <title>十个元素图层（图片） - TS-GIS客户端 JavaScript SDK 二次开发指南</title>
+    <link rel="stylesheet" type="text/css" href="../vendor/openlayers/ol.css">
+    <script src="../vendor/require.js"></script>
+</head>
+<body>
+<div style="left: 0;">
+    <button onclick="dataLoad()">加载数据</button>
+        <span id="c00" style="display: none">
+              <input id="layer0" type="checkbox" onchange="onchange">
+              <label>危险源</label>
+        </span>
+       <span id="c11" style="display: none">
+             <input id="layer1" type="checkbox" onchange="onchange">
+             <label>防护目标</label>
+       </span>
+        <span id="c22" style="display: none">
+             <input id="layer2" type="checkbox"  onchange="onchange">
+             <label>应急资源</label>
+        </span>
+       <span id="c33" style="display: none">
+             <input id="layer3" type="checkbox"  onchange="onchange">
+             <label>应急物质</label>
+        </span>
+       <span id="c44" style="display: none">
+             <input id="layer4" type="checkbox"  onchange="onchange">
+             <label>应急运输</label>
+        </span>
+
+      <span id="c55" style="display: none">
+             <input id="layer5" type="checkbox"  onchange="onchange">
+             <label>居民地</label>
+        </span>
+       <span id="c66" style="display: none">
+             <input id="layer6" type="checkbox"  onchange="onchange">
+             <label>医疗资源</label>
+        </span>
+
+      <span id="c77" style="display: none">
+             <input id="layer7" type="checkbox"  onchange="onchange">
+             <label>避难场所</label>
+        </span>
+       <span id="c88" style="display: none">
+             <input id="layer8" type="checkbox"  onchange="onchange">
+             <label>宗教设施</label>
+        </span>
+
+       <span id="c99" style="display: none">
+             <input id="layer9" type="checkbox"  onchange="onchange">
+             <label>公共服务</label>
+        </span>
+</div>
+</div>
+<div id="g2map"
+     style="top: 50px; left:120px;; bottom: 0; right:0; position: absolute; width: 100%; background-color: #3cace7;">
+</div>
+
+<script>
+    window.onchange = function (e) {
+        var checked = e.target.checked;
+        var id = e.srcElement.id;
+        var layer = layers[id];
+        startTime = Date.now();
+        layer.setVisible(checked);
+    };
+    var layers = {};
+    var startTime, endTime;
+
+    // 为 requirejs（一种 AMD 模块加载器）指定文件别名和文件间的依赖关系
+    require.config({
+        baseUrl: '../vendor/', // 文件查找的基目录，这里指的是
+        // 与 “index.html” 同级的目录下的 vendor 子目录
+        paths: {
+            //第三方组件
+            jquery: 'jquery.min', // ts-gis js sdk 依赖于 jQuery
+            ol: 'openlayers/ol', // 地图显示组件（后续可能会添加Leaflet支持，届时这个引用会变化）
+            proj4: 'proj4', // 坐标转换库
+            echarts: 'echarts.common.min',//图例库
+
+            //TS-GIS组件
+            g2: "ts-gis/g2",
+            gis: "ts-gis/gis",
+            services: 'ts-gis/services'
+        },
+        shim: {
+            // 设置 gis 组件对 g2 组件的依赖关系，
+            gis: {
+                deps: ['g2','jquery']
+            },
+            services: {
+                deps: ['g2', 'gis']
+            }
+        }
+    });
+
+    require(['g2', 'gis', 'services'], function () {
+        // 创建地图对象
+        var g2map = new g2.maps.Map({
+            defaultExtent: {
+                center: [-8071750, 1230330]
+            } // 为方便展示设置视野中心点的范围
+        });
+
+
+        // 初始化地图，传入要初始化的DOM对象的id
+        g2map.init({targetId: 'g2map'});
+
+        // 创建 wms 瓦片图层
+        var tileLayer = new g2.lys.TileLayer({
+            tileType: g2.lys.TileType.WMS,  // wms 瓦片类型
+            layers: "gs:gis_regionalism_province",  // 图层名称
+            url: "http://172.18.24.33:8080/geoserver/gs/wms"  // 图层服务 url
+        });
+
+        //将瓦片图层添加到地图
+        g2map.addLayer(tileLayer);
+
+        //
+        var ajaxhttp = new g2.commu.AjaxHttp({token: 'Bearer d277145'});
+
+        var featureClassService = new g2.gdb.RestFeatureClassService({
+            url: "http://172.18.24.34:8080/fusionGIS/featureClass",
+            deserializer: new g2.lang.Deserializer(),
+            http: ajaxhttp
+        });
+
+        var picSource=["iVBORw0KGgoAAAANSUhEUgAAABoAAAAfCAYAAAD5h919AAADFElEQVRIS7WXTUwTQRTH/xtpCzSNlXAQSSUpoYREPGnCsRq4mBQSPXmqCSkUCnqgPRoIJ4X1BP1YMCocPHjiK156wQMXr4RQFBKShthI1BIiq92VNbMw627Zr0aYpGlndvb93v/Nm5lXBgDm5uYCDMOEALSS/jm2LUmSlsPh8CfmFMJxHBcURVFmMAwjf0uSJP+mfTpm5gidKwgCSqUS4vH4qiRJ/cz8/PxIJpNhnR0dcHZ1yTYuNTb+t6g/e3soZbP4ls0ikUjECWgmmUxGLo+NnQtA7SGBFUdHMTQ0NCuDUqlU5MrMjC0V79vbcW993dZcMukgGkU0Gj0BpdPpiJfjLF8mENIqAf3o68Pg4KB9UG9DAx7U11cMKvb3Y2BgwH7oqBpCur+xgV/Hx7jl8aDd7cbrQsEwGhUrUoNo+LxVVXjb1oaJfB6rxaIuTAOykwzloDeFAt7t7+OO14uEz4ferS18KZXOwCoGvWptxVWnU2OIJgV14nk+jw9lymyvEU3nttpavGhuNs3MA1HEw81NzRxbiib8ftxwu5V0Lg+fHjWcy2FfEJRHlqCbbjee+f2aPWMH9FUQ8CiX0wfpbVi1UbIWdiDE+sfDQ4zt7tpXZGXYCL7N83i8vX3xoM2jI4zs7CggTdZZhU5v0Ymiay4XXgYCuilPBy3TO93Sgqbqat10pvsn7vPhrtdrCtJkHbmP6mZnzxg1WqfyjUpf1DvVNYqMQMSA3hlHxjOBAK67XIpzRldHRYfqbY8H30UROzyvGH7a1IR6hwNPVBmmF2eNoqmpqciV8fELv8pHWJZl6zo7L6Q44dfWEIvF4kq5NTk5GXSdxtzhcMhRIOVWdSiEmhAp+Ywbv7wMfmlJKc3Ie+RDWiwWOym3SMekgGxJpVJBMxiB/F5ZIdf1KoDPZe78KyDNPKXFZTKZDNZ0d59RRpVQr0lFamTvpCQ1aRQ2PT0drO3pUWAE8nNhAcPDw3JozCDEvCVIFVqOwsjY0eIiKQxtQWyD1DCWZYOkT2tqKyU0WLYU0cmqpCFZJf9LsAo9ff4X9HwAAqRDyxMAAAAASUVORK5CYII=",
+            "iVBORw0KGgoAAAANSUhEUgAAABoAAAAfCAYAAAD5h919AAAE0UlEQVRIS7VXXUxbZRh+Dm1pS/k7dKWwAtXETY0/F944E6M1gkYTxrzw58ZhjPwW4sZK9GLZyPxLRqNx0EIhMYN4pzFsEKPBHzRhxiy7WIxGpyWhLZUGSktLW/rHMe8H56yFtpC4vUnTfud83/e8z/s97/u95QBgYmLiKMdxzQDup/EdtL8EQZhubW29xe2AOBwOhymVSjEMjuPYtyAI7Lc4Fp8VckScm0wmkUgkYLFY5gRB6OAmJyfPjI6OWouPHUNxUxPbQ2Yw/G9S6aUlJGZn4Z+dRX9/v4WAxmw2W1vFwMAdAcj0kMCC58+jp6dnnAHZ7fY2fmwsLwsZx+E+lQrPVFayOVsAijkOt2IxzIdCiKTTedeud3ais7NzG2hkZKSt0uHIOZmXy/FsZSUDuUelyppDAAQ0s7aGxc1NpARhzx6B9nZ0d3fnByI5HFGr0VFbiwdKSpAQBARTKYTTaRQBkHMcyIlSmQzRrS187vPhm0AA8S3ie9uCHR3o6urKHzoCOWc0okoux7+JBL5eW8O3gQCiBMRxIN8f1Wjwmk6HB0tKGPCkz4cvV1eRzmBWkFGZTIazDQ14WKPBP7EYPvZ4sBiP5wwtAbxZU4MXq6rY+4HFRdzc2GCOkGUB7RYDnUlfXR18iQQ+cLvhjMUkEBIBiSOWESICo/lPV1Tg13AYn3g8LMQFgbQKBfoMBjyi0eCyz4evVle3kxiAUaXCk+Xl7Fx+i0RwfWMDiR1Ao1KJs0Yj9AoFPnK78UsoxNblPaOXdTqcrK5GKJ1G38ICY0WmLy5Gf10dOw8yOvRLXi/mgkGJ7Tv19XiqooIp8UOXqzCjUwYDmngerngcbzudksePl5UxcWQaeX3R45HmvFVTg5cOHWL5ddrpLAx02mBAI8/DubmJU04ntnYUlAvo5/V1XFpaks6rVa/HKzodExA5ueeMMhP2pF6PV3U6ljOWhQUmbTF079bX46hazcYkhhGvF9/nCN31cJipr6AY7lWpQKwaVCpcXl7GlN8viYFAmrVaaGQy0GY/BoMSmzqlEgM7YvjU68V3gcD+8m7RatFeWwtPPI73XC72LZqyqAjqoiLGWDSSd/fhw3ie5/F7JIL3XS4mpj2q213rSOKUsMTgZiQCu9ebBZYpCJL963o9Tmi1rDpcdLtxLRyWznbfEkT17VxDAyrkcvwZjbI69tP6uqQwAntIo8ELPM8kTUk87ffjs+VlVhdFy6oMdB9VjY9nSZcGT5SX4w29HhR/Ssw/olGsJJMsedUyGSu61QoFW0eJ/cXKihQycbMsRvmAaDKF7zmex2OlpSxpM42uhRsbG/ghGMSNcDirLOVkVOg+ogWkMipJJHslx7GLj0J1LRRiVd2fTO6JRk5GQ0NDbfyFC3f9Kj9jtVqtVY2Nd6U5ic3Pw2w2W6R2a3Bw0KRUKhljxc4BU7ulam6GuplavvwWm55G7OpVqTWjdfQhM5vN2+0WDQo0kEfsdrupEBiBxGdm6LqeA/D3LnduN5CFPBWbS5vNZlIfP76HmchE9Jo60nz7bbekBUwEGx4eNpW0tEhgBBKZmkJvby8LTSEQ2n5foIzQOkQweha9coUawwOBHBgoE8xqtZpoLPbU+zERg3UgRuLkDNGQqti/hP1CL77/DwEZ0wIjN/8AAAAAAElFTkSuQmCC",
+            "iVBORw0KGgoAAAANSUhEUgAAABoAAAAfCAYAAAD5h919AAAD9UlEQVRIS7WXX0xbVRzHv7e1pbhRbIczo+wSAuKDe/BFg3ExfRhR48rigzHxhaeOQulCQvFfNJA9Sn0w0ELBxECivrKxxYcmOv/syejLBpNRwJgsW1hqW1Z6b+ktx/wOPcgtbW9xepKmPeeecz6/3+9+z+/8KgHA3NxcpyRJHgDPUf8/bCuMscXe3t67UhESjUajbk3TOEOSJP7NGOO/RV+MVTNEzM3n89jZ2UEwGLzBGOuT5ufnh6enp0PWri5Yu7v5HmaX67GdKty7h51YDIlYDCMjI0ECzYTDYW/j2FhFQJ3JhOGWFrxitx8y4M3btysaRbDU6CgGBwdnOSgSiXgdMzMVFzwhSdAY+1depn0++Hy+PdDU1JT3qWi06kaRjg7INhsKRSC9xRxjeHt5ueq65MWLGBgYqB30aVsbnj927Eiho8mpvj709/fXFjpaMNnRgTab7cigI3sUcLnwusOhA2UKBbxz507toSsnBpvJhNzuLoQEnrZYMNDczL2iMTpj3zx8iFgyyUEkGLMk8TUHm86jciDa9MWGBq422lRlDLbi4SUh1JtM+OLBA3yfSuENpxPvnjyJbKGAvtVVHcjwHY22tuKlhoaKYfkzl8MHGxvYZQyft7fjGauVzy09V4YefSTLZQ+oIL+3vo6lbBbvnz6NVxsb+TBBPUtLRwvdh7KMs3Y7/lBVpDQNLxw/vr/B15ub+Gpzkz8famnBb5kMN4re3fmSTGGoOuHRcjaLv/J5nC1avaGqGIzHQWnpy85O1JvNuJ5I4K2mJmNQOTEI0O/ZLJKahpeLee5SPI41VcUllwuvORzYKhTwQyoFz4kTjwdaURSkNY0LYyGRwOz9+1yNY62tPJQU1p/S6YognerK5Trh0V1F4fmNzlHvygqaLBZQOhIqI9CP6TR6KnhkKG8BIjH8msng1vY2fnn0CKUZwgikEwPdR87ZWZ0sBWhdVRGIx/mzbocDQyWXohFI51EtoGarFZ+1t8NuNutPvkHoDOX9sSxzpa0qCobW1vCJLKOrzA1LHv28tYXzTmfZzKDzaGJiwuu4fPnQVX79zBku5e+SSXhPnSqbjkgo3yaTHFSafkqv8uFQKBRynjv3vxQnys2b8Pv9wf1ya3x83F1XV8ettlgs/Juyts3jQb2HSr7KTVlchHL16n5pRuvoQ83v9++VW9SpUkA+G4lE3NVgBMldu0bX9Q0A+jsC+KeArGapKC7D4bC7vqfnkGfCE2E1VaSV9tsrSas0AZucnHQ/eeHCPowg2wsLCAQCPDTVILS9IehAaKMCRmPZK1eoMKwJUjPoICwUCrmpL2pqI09EsGrySEw+IBpSFf+XYBR68fxvq/yLAh5/drAAAAAASUVORK5CYII=",
+            "iVBORw0KGgoAAAANSUhEUgAAABoAAAAfCAYAAAD5h919AAAERklEQVRIS7WXbUhbVxjH/3dpEmOzaqLGmCwUnY3ICnv51A/9kEG7DTbr3qHtmMNNo0b3xQgbY7RzL10xYzBNNMrKFAb7Nt+6L8KQUQeDMQbTpiq2S6q22UyalyYxr3c819xMY3ITsD0QknPPOc/vPM/9n+c8YQBgfHxczzBME4AG6j/Atsyy7ExLS8sKk4bY7Xa7IZFIcAyGYbhvlmW533yffya0EX5uPB5HLBaD2WyeZ1nWyExMTPSOjIxYJCdOQHL6NGdDpNUe2KnkxgZic3PwzM2hr6/PTKBRq9XaVnbx4gMB7N4hwXwXLqC7u3uMA9lstjbF6KigF8/I5TivUkEtkXDz/gqFMOXxwBEOC67zd3Sgo6NjBzQ8PNxWbrfnXfCSUolOjWbf+L1EArbNTfwaCORde6+9HV1dXYVBTx4+jM9ra7Ejj/1tPRpF382bCCSTOcd9RiM6OzsLh+6Nqiq8U10tGJ7Lt2/jF78/55yiPWpVq/FaZaUgiMJ31estDBISwzmVihOBUPtqfR0/+3wHA50sK8OHOl1eTjiVQu/aGlzR6MHeEYngvZoavFxRsc9QgmXx7d27mPZ4ilNdrtA9JZdzxr/e2EClWIznFQqQAqvEYs7o39Eo1iIR/OT1IpJK4dnycvy4tYXtVGoPdI8YskGPSaW4VFsLxaFDOOtwcPKm3W/F4ygXiSgZIphIgA7xn6EQvnO7Yauvxx/37+NTlwuxXTBB1fVoNHhBqUQwmUTr8jIu19WhrqRkX3j+iccx4Xbj92AQPzQ2cuP9Tid+CwYzcwU9uqLXo1oigS+RgHF1lfMuGzTp8WDB78ejIhFWIhE8p1Dg7epqXAsEcMnlKg509fhxLlSjd+5w5+PkkSPo1ekgSV8fa9vb+MzpxPtaLZ6Wy7EUDuOjW7dwpaEBjwA4f+NGBrQnM2TnOgIRgA4i395Vq/Fq+uAuhkL4xOnE942NGfjr16/j46NH8URpKZqXlnKDssVAIPKGsjPfzqpUeCt9cGe9XgxvbmJMr4dGIoE7FkPrygr45Pvi4mLu0NF9pBwbywwSiJLkly4XJwiSt7GmJnNFkADm/X58oNNBL5Nx74jyHUn8lYoKvOlw5PYoG/RNfT0ez6EywTyUHlwIBPBFPjFkvyOtVIp2tRrHZDKwaQNJlv+1U1NQxkiln1FfzDBcvqND+288ntujwcHBNkV//0O/ynstFotFeerUQylOIgsLMJlM5ky5NTAwYJBKpZzL4nQ+o3KrpKkJsiYq+fK3yMwMItPTmdKM1tGHmslk2im3qCNQQB6z2WwGIRhBorOzdF3PA1jN2s7/BaTQTvni0mq1GmRnzuzzjPeE3zVVpPns5as5MvN52NDQkKG0uTkDI0hochI9PT1caIQgZKwgaFdo7TyMnoWnpqgwLApSNGg3zGKxGKjP19SFPOFDU5RH/ORdoiFVcf8SiskWNOc/VlR/AhHyBRwAAAAASUVORK5CYII=",
+            "iVBORw0KGgoAAAANSUhEUgAAABoAAAAfCAYAAAD5h919AAACP0lEQVRIS7WXMVPiQBTH384Nctqc2lrfWdlbptDGGfQjUCGBQGWodWxJBwkEKvgEKs41NDZ+AivP2tJRC2UEnHVe8OU2YbPBMdkZhmx4eb/9v/w3eTAAgF6v94cxlgOATZwnOG4554N8Pv+PfUJc13W16XTqMRhj3jfn3DumOZ1TLYRiJ5MJjMdjME3zinNeZP1+/6jdbltL29uwtLvr5fixsfFtUe/39zAeDuFhOIRarWYiqGPbduHXyUkiAHGFCHs6PoZKpdL1QI7jFNY6nW+rkCV41nXQdX0GarVahVXXTQX0eHgI5XJ5HvR3a2th4N7NTWzsU7EIpVJpvnRJgxJTJC5MpjAAEs3wVUXh+DAsURAlJ6gIS+weYXIxcRiWiiK0YKogmcdJZaTrYjdGKEBmHrGUiZROtSipIpm9ZTc4KrHKDAHXic86clF4I0btL4TIYgkeae+wc2R7Q1Qm/i6LDdwjfB+td7v+9XEXfwUUUBQGiarwOO4prXreJWbvuO0QUNRoNAprp6epv8qPLMuy1nd2UmlORtfXYBiG6bdb9Xpdy2azXiUymYzfbv3M5WA5hy1f9BgNBjC6uPBbM2zT8IPDMIxZu4UTRQP523EcTQVDyNvlJb6urwDgLrSc/w2kaqXUXNq2rS3v788pIyW0auxIo/LNWlLFIFiz2dRWDg58GEJezs6gWq16pVFBMH0sSCitSzA893p+jo3hQpCFQSLMsiwN59RTxymhYi2kiIIF06CrvH8JcaWn3z8A2q/n8z8XVCYAAAAASUVORK5CYII=",
+            "iVBORw0KGgoAAAANSUhEUgAAABoAAAAfCAYAAAD5h919AAAD+UlEQVRIS7WXX0xbVRzHv5f+kxYoXGLNLoOyOZ1/Fo0mJjNR08Qt/plAfDA6NeEJKBR8kBL1wUDQaAx3PgxaKMQ4eFNf2JiJhpjsZQ8+y6iTZHGhRUglrWLpei+Xa36HnXrL7T/cdl7gnvM7v8/5/TvnVwEAZmdnHxYEoQ3Acfq+i+O6rusLnZ2dvwm3IZFIJOLb2dlhDEEQ2F9d19n//JvPlToIl1VVFYqiIBgMXtF1vUeYm5sbnJqaku0nT8J++jTTYWlqumOjtHgcyuIiNhcXMTQ0FCTQdCgU6nKPjNwVgPGEBEsND6O/v3+GgcLhcFfD9PQdW1FIwV9+P/x+/x5ocnKyqz4SKQh6wG6Hz+3G9u4uixmPoUMQUCUIUHUdO7qeW7NQTAHMb24y2WR3N/r6+sqDnqmtxYjXe2BrzywtsT2pnh709vaWd10x0Pl4HD8mk3jb48E7Hk/eQbY0DW9Fowez6BGnE+eOHjVZdDYaxd+ahufdbnzY3Jy3TvO0bnJdoWTwOhwsLk+4XHj/8GETqGdlBbFsFh2Njeg+dOj/gd71eHB2nztIEwX420QCotWK32/dAqVGrcUC0WZDUlXxsdeLx5xOGF1XNEYEINCaouCL1VU87nTmTjy3sYFvEomiifFJayuerqnJA+VlHXfdSw0NeK+pCb9ub2Pwxg2m8H6bDReOm6/A7pUVxLNZvCKK6Jekg7nug+ZmvOB24+v1daQ0DVZBQIvDweKwf7y+vAxldxfP1dXho5aWykC8YAckCS+LYkU189X6Ov5QFDxVU4Mz+/aUzbqAJOHVCkGlTlMWRGlayE0VmWgQMoLyso677rMjR/Cky3VQvSZ5qr83lpeLX0HfnziR23RhYwPfJRJ4sb6+YMGS4E+pFL6MxfCo0wnZcHtouo72a9fMNwO9R+LMDB6srkaj1Yphr5fVC9XNa6KIXknCuVgMS+k0u7FdVVU4f+wYft7awujNmywhPm1tZcX8QzKJeosF1zMZs0UcxM2huqH64YPqherGOHgpGOfejEbxj6blyZV8JiS7HaSI3iK6zz5fXcWmqppiQXfgs3V1+FNVEV5bwy/ptEkmLxnGx8e7GkZH7/lTPijLsiyeOnVPmpPM1asIBALBXLs1NjbmczgczHTb7fjQ031fWxuq26jlKz4yCwvIXLqUa81oH3/2A4HAXrtF20s0kA+Fw2FfKRhBspcv03N9BUB+xgD/NZClTsqby1Ao5KtubzdZxi3hp6aOtJi+vZa0xOCwiYkJn7OjIwcjSHp+HgMDA8w1pSCkvizI4NoIh9Hc9sWL1BhWBKkYZITJsuyjb95Tl7OEO6sii7iwIWkoq9ivhHKu5+v/AnA1ZwI3CK6kAAAAAElFTkSuQmCC",
+            "iVBORw0KGgoAAAANSUhEUgAAABoAAAAfCAYAAAD5h919AAADr0lEQVRIS7WXXUhTYRjH/+e4D5eWOmthJlHSgiiCbuqm2EVdhXpfkRCo02k3zYogkoKK3EWhm04j0su6Ka0u8iIvEropgj7wA5pNB0ot59hmZzvbG89xZ+3r7CzKB8Z8z/vs+T1f530fOQAYGRkxcxzXAGAfrf+jzDDGxpubm2e5JMTtdrstoihKDI7jpG/GmPS3vJafFXJE1o3FYohGo7Db7ZOMsTZudHT04uDgoEN39Ch0J09KNkpqa/85qLjPh+jEBPwTE+ju7rYTaMjpdLZU9PT8F0C6hwQLXL+Ozs7OYQnkcrlaqoaG/jmKfAZWrVZYrdZ10MDAQEul270hoJXWVnR0dCiD9DyPU0YjzphMKOV5MGoSAGuJBB5//44xvx+/EglV5wJtbWhvb8+fup16PXr37MGWkhJFQ6uiiKGlJUwGAgVhihHV6HR4YDarekoKCcZwZ2EBU8FgSr+puhrBeByvkw5kgORm0HAchs1mmLTaokCk5BUEXPV4sJJ8B18cOACfIKB1bk6ykRd0rKICV+rqiobIije9XrxNRkWg96EQrs3PS9t5a0QQgmUL1eOnKKJKo0GlRpOz/yYYxG2vV3pOoM/hMC55PMoRPdm/H5t4PsPQcjSKu4uLmI5EcLCsDBdqa7FDp8vQCcfjODs9jShjEuhLJILur1+VQaSULR/DYVxJekd7l+vqcDwraorWOjcHAmZL3q6jRsj2NiCKeLi0hHlBgNlgwGmTCcas9BUNkruuraYGjdXVeZuBgPnqQ8qvVlZw3+dL1cgfi+HczIxy6vYaDLhXX//XXXfZ48GncDgForqen53N7br0s+7W7t04VFZWNOxDKISeb98QY3RI5YriEbRNq8W1XbtQX1qqCqN0UjSLgqCom9EMdB8Zh4dTytt1OlC9jmzerGiAXtBHy8tYKADJeWGzQaRg4HkcLi9H09atKOd5iIxJp/gPUcRLvx/vQiHpJFcT1WtCzUCx+xk16uvra6m6cWPDr/KLDofDYTxxYkOGk7WpKdhsNntq3Ort7bXo9XopI9rkNUHjVmlDAwwNNPIpy9r4ONbGxlKjGf2OPiQ2m2193KJFgQFyr8vlshSCEUR4/pyu60kA65fQH/kzQBbyVB4unU6nxdDYmBOZHInsNU2kSvbWR9ICIsP6+/stm5qaUjCChJ8+RVdXl5SaQhAyrwpKS61bhtGzyLNnNBgWBSkalA5zOBwWWssztVokcrKKikhWTmsa6irpvwS11Mv7vwEEK0kCCii/1wAAAABJRU5ErkJggg==",
+            "iVBORw0KGgoAAAANSUhEUgAAABoAAAAfCAYAAAD5h919AAADRUlEQVRIS7WXO0xaURjH/9fyKE0ExJoomhhrbB3ca5eWpJo0adBOTTeTJgiCLIrp1GqcmkjSQUEvDEYakzZx8NWhYXGoS4cO7WCUWO1gEZHiiyJX4DbnyrkF5RXBkxA4r+/3fd95/WEAYGZm5i7DMHoA90i9jGWd5/mlnp6eDSYFYVmW1cXjcYHBMIzwzfO88JvWaVs+R+jYs7MzcBwHm822wvO8kfF4PINTU1N2WXs7ZJ2dgo0b9fUlB5XY2QHn9SLk9WJoaMhGQC6Hw2FQjYyUBZDuIYEdDA+jv7/fLYCcTqehyuUqOYpsBg5NJphMpnPQ5OSkQc2yeUEPlEpUSyQgqyhnGPw8PcWPSKSgc+HeXpjN5uJBAw0NeKxWi4bfBwL4EAwWBB0Yjejr6ys+dWatFk81GtGw2+/H53AY7UolVo+OwCWTWaEFI6qRSvGythYPVSrMh0KCoec1NaKx6d1d3FEo8EilwpfDQ7B+P/6kjkc6MQN0cTMQyNumJtTKZMKc3xyHr8fHeFZdLdqY298XUlklkQhtx4kEzD7fJVheENvSgga5PCMVBKZNgUnHLseJjtCBG9EoXm1tZaQx5xo90Whg1WoLLnKuAS6/HwuhkNidM6J3zc24q1BcGRSOx2H0+RBJJAQbWUFqiQSzra1XhtCJL9bWhDW7BKIHlqwLWZ9Sy8DmJtaj0dwRvWlsxP3KylI5+HZygtfb27lBn9raSoZQA9OBAOaCQWTsOpq6coI+BoPwBAKZIHpgyW6LJpOIJZO4LZXCVFcHeUUFeADZLxigAoCMYTC7t4fvkYgwnly6cZ7Hr1gsc9eR90jjdpctbemGMlJ3naCCl2q5wsuIaHx83FA1OnrtT/mg3W63azo6rkWcRFdXYbFYbKLcGhsb08lTN7ZUKhUyR+TWTb0eCj2RfLlLdGkJ0cVFUZqReeRDisViOZdbpJJHQLY4nU5dPhiBxJaXyXO9AsB3wZ3/AjKfp1RcOhwOnaKr61JkNBLqNVGkueydS9I8hcImJiZ0t7q7RRiBRObnYbVahdTkgxDzBUFpqWUpjLT9XVggwrAoSNGgdJjdbteROtXUhSKhySoqIjo4bdOQXSX8SyiUetr/D2qzBgLY3lDrAAAAAElFTkSuQmCC",
+            "iVBORw0KGgoAAAANSUhEUgAAABoAAAAfCAYAAAD5h919AAAEKklEQVRIS7WXX0xbdRTHv/f2D/03CqVsE5KBkWJiUGN8cFFj+rA9qGFbookPxpAsYRQKTysv/hvOJ0OfhLaUPsG7BgaLGh6cxqnRPS5RRwJdJpQoLaXN2nLv7b3m/Oit9/Z/su0kTfu7vz+fc87vnHNPOQBYWloa5DhuGMCzNH6M8peiKGsjIyP3uBIkGo1GvZIkMQbHcexbURT2Wx2rzxopoq4VRRGCICAQCNxSFGWMW15evrqwsBA0nz0L8/nz7AxDb+8jG1Xc2YGwsYHkxgamp6cDBFoMhUKjzpmZxwLQakiw9LVrmJycjDFQOBwe7VxcfGQrah1w6PPB5/MdgyKRyGhHNNoU9JLDgRftdoiKgs18Hr9ls033HFy5gomJidZBZp7HTF8fA5H8mcvh43gceVluCEuPjWF8fLy566w8jwGrFc9YLLjkdqPbZGIHF2QZsb09bOZy+EcUkS0WawJbssjIcfjg1Cm863ZDUBTkikV0GI3swEyxiIQgYNBqxS+ZDL7c2akJ04HqBcM7bjcunz5d1zWSooCUIfk9m8Vn9+9DqVjdFOQ2mbDg8YBcp0pKkrCeTCIny3ivuxudJevU+cVEAqvJpA7V9I78PT14y+XSbQrv7uJmKsWevWC34/P+/rJFaoB8Eo8zRVRpaJHDYEDE44GrQuNYIoGVksavnDiBT/v6dIpQUHy4vc3uriWQ3WBAeGAA5D6txAsFfPHgAcujj86cwdMWi27+X1HE9NYW6LsmSE1YC8+DkvJQkvCa04lLXV1VgUD3dCTLeMpsrpr77uAA36ZSIEW3CwWkJQk1XTfZ04M3XS7sCQIiiQS8Tie8HR04jqv6QpH2ayaD79NplmvP2Wz48fCQWV8TdHNoqHzaH7kcW/x6ezsGbTaYSmGsxRGgqCjYKhTwcyaDlx0OPF+qHLTu7bt3oYs61XXrQ0M67am87IsiyKV0X5WWUXWgikCwNp6vCvcqkJqwbzidLD/6Ky65ieeqpncFAV/v7+ObVErvOnofuWIxtoFCmgKB7sdpNEJWFPS2tTVk0Z2SVQ9lGT+k0/gpk2GeING5TgtST6Ssp7TrMhrx/smToNyieqcVG8+DovCr/X38fXQEA8exiNVKS0WVNhDw1fZ28BzH8kcrFCBU7+5ks7rc0a7RWTQ3Nzfaef36E3+VXw0Gg0HXuXNPpDnJ374Nv98fKLdbs7Oz3rbSpZtKpYfaLcvwMKzD1PLVl/zaGvI3bpRbM9pHHxK/33/cbtGgQQPpCYfD3kYwghytr9Pr+haAzQp1/m8gG2mqNpehUMhrvXChyjLVElVr6kjrndesjKnWRufn5722ixfLMII8XFnB1NQUc00jCMGbgjSuLcPoWW51lRrDliAtg7SwYDDopbHaUzezRHVlSxapizVBQ1HF/iU0DEfN5H/+nH8CttJflQAAAABJRU5ErkJggg==",
+            "iVBORw0KGgoAAAANSUhEUgAAABoAAAAfCAYAAAD5h919AAAED0lEQVRIS7VXX2hbZRT/3fxPzf/bLMPqCtUp+KIo4kSUqCsiI+2YDwoDi2DXtGmflgqCsDrwqXlrkzYtPrQvZYKyLlUHAanofNEn3ZCprDrX0m3NzT/zP+mV8y035t+9SXE78HHvd3PO9zu/853vfCccAKysrDzBcZwHwJM0v49yXRTFyMjIyG9cFSQcDofd5XKZYXAcx56iKLJ3aS59U3JE0i2VSigWi/D7/ZuiKI5xq6urZxcXFwO6Y8egGxxka6j7+v43qcr2NorRKGLRKKanp/0EtBQMBketMzP3BaDeQwJLnDuHycnJZQYUCoVG7UtLiiwomE+bTBgwGEDvP2cy+COXg9iBe9LrhdfrvQe0sLAwaguHZU00HIfXbTY8ZzbjJYuF6X2TSOCndBrfJpOKUPEzZzAxMdEZ6FG9Hqd6e/Gy1QqjStWwaKpSQTQex1eCgN1isS1gYmwM4+Pj7UOn4ji4tFq8YrXiDbsdLp1O0eu/CgV8LQj4LplEopq5koEsoz69Hi+YzXjRYsFTPT0Hyr5r2SxjeC2TwU6VYQMQJcPg2hqeNZlwwuFgi9O+NMtWPo/1WAw6jsMQz+MRvb5FpyyK2Afw2d27WLtzBy1AH0QiOMnzigzmtrdxOR5nOu+6XHjb6VTUP3H1Klr26OSFC3jL6cRjBoOs8ZeCgNDODvt9pr8fz5vNsro/pFL45ObNVkZ0jh43GvGey4VnTKa2C1BYZm/dAq/R4P3Dh0FJ0042Ewl8ursLoVxuD0RGBPJxfz/UVOMOlApghzddqeDDrS38mc8za9mss2k0sKjV+KdSwelDh/CwXs8W0Fe911afJVEEMaRBTv2azbJEsWo07EwV9iklmoCaS5CH5xErlfCQWg01wEC/T6Va+FGoaeyLIooECECrUuGyINR0W7KuvtZ9dOQIO0eSVESRlZz6PaErxKhW10qSpPvF3h7bH0kasq651lElCAwMwKHRHGiX6Jz5b9xAvho2MlYsQaTwpsOBd5xO9Gq1XYH9XShg9fZtUFrXS0Po6D5yLC+3LPiqzYZhnsdRo1ER7JdMBp/v7eHHdLpFr4GRHBBZURad4nm8ZreD9qpeaBaJxbAhCCjWhUuWUaf7qKvYySg1MJqbmxu1nz//wK/ys4FAIOA4fvyBNCe5K1fg8/n8tXZrdnbWra+WfW010+isGDweGD3U8slLLhJB7tKlWmtGdjRIfD7fvXaLJgoN5NFQKORWAiOQwsYGXdebAH5vcue/BlLJU6m5DAaDbuPQUAsziYnkNXWkcut1LNAS2Pz8vLtneLgGRiCZixcxNTXFQqMEQuAdgepCG5bA6Ft2fZ0aw65AugaqBwsEAm6aSz11JyZSKLtiJCnXJQ1lFfuX0O1h/helSk0CR3T5qQAAAABJRU5ErkJggg==",
+        ];
+        function query(filterWhere, layer, index, symbol) {
+            //创建过滤器
+            var filter = new g2.gdb.QueryFilter({
+                        subFields: 'objectid',//子字段
+                        where: filterWhere, //查询条件
+                        returnGeometry: true//是否返回几何图形
+                    }
+            );
+            var eles = [];
+            featureClassService.query("gis_poi", filter, function (featureSet) {
+                var features = featureSet.features;
+                var start = Date.now();
+                for (var i = 0, len = featureSet.features.length; i < len; ++i) {
+                    var ele = new g2.ele.Element({geometry: features[i].geometry, symbol: symbol});
+                    eles.push(ele);
+                }
+                layer.addElements(eles,true);
+                var end = Date.now();
+                console.log('addTime:'+(end-start+' count:'+eles.length));
+                var element = document.getElementById('c' + index + index);
+                element.style.display = 'block';
+            }, function (data) {
+                console.log("查询失败！");
+            })
+        }
+
+        window.dataLoad = function () {
+            for (var i = 0; i < 10; ++i) {
+                var layer = new g2.lys.ElementLayer({map: g2map, id: 'Layer' + i, visible: false, cache:true});
+                g2map.addLayer(layer);
+                layers['layer' + i] =layer;
+
+                var markerSymbol = new g2.syms.Picturemarkersymbol({ source:picSource[i],width:"26",height:"31",rotation:"0", opacity:"1", offsetX:"13", offsetY:"31" });
+                query("objectid<"+(i+1)*10000+" and objectid>"+i*10000, layer, i, markerSymbol);
+            }
+        }
+    });
+</script>
+</body>
+</html>
