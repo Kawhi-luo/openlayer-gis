@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" type="text/css" href="../vendor/openlayers/ol.css">
+    <script src="../vendor/require.js"></script>
+</head>
+<body>
+<div  style="bottom: 0; right:0;  height: 50px"><input id="input_x" type="text" /> <input id ="input_y" type="text"/> <input id="location" type="button" value="坐标定位" onclick="drawPoint()"/></div>
+<div id="g2map"
+     style="top: 50; bottom: 0; right:0; position: absolute; width: 100%; height:95%;background-color: #3cace7;">
+</div>
+
+<script>
+    // 为 requirejs（一种 AMD 模块加载器）指定文件别名和文件间的依赖关系
+    require.config({
+        baseUrl: '../vendor/', // 文件查找的基目录，这里指的是
+        // 与 “index.html” 同级的目录下的 vendor 子目录
+        paths: {
+            //第三方组件
+            jquery: 'jquery.min', // ts-gis js sdk 依赖于 jQuery
+            ol: 'openlayers/ol', // 地图显示组件（后续可能会添加Leaflet支持，届时这个引用会变化）
+            proj4: 'proj4', // 坐标转换库
+
+            //TS-GIS组件
+            g2: "ts-gis/g2",
+            gis: "ts-gis/gis",
+            services: 'ts-gis/services'
+        },
+        shim: {
+            // 设置 gis 组件对 g2 组件的依赖关系，
+            gis: {
+                deps: ['g2','jquery']
+            },
+            services: {
+                deps: ['g2', 'gis']
+            }
+        }
+    });
+
+    require(['g2', 'gis', 'services','jquery'], function () {
+        // 13055357.527830,3710686.680000 //清华
+        var point_x=13055357.527830;
+        var point_y=3710686.680000;
+        // 创建地图对象
+        var g2map = new g2.maps.Map({
+            defaultExtent: {
+                center: [point_x
+                    ,point_y]
+                ,maxZoom:22
+            } // 为方便展示设置视野中心点的范围
+        });
+
+        // 初始化地图，传入要初始化的DOM对象的id
+        g2map.init({targetId: 'g2map'});
+
+        // 创建 百度地图矢量 瓦片图层
+        var baiduvec = new g2.lys.TileLayer({
+            layerType: g2.lys.TileLayer,
+            tileType: g2.lys.TileType.BaiduMap,
+            opacity: 1.0,
+            visible: true,
+            matrix: 22,
+            url: "http://online0.map.bdimg.com/tile"
+        });
+
+        g2map.addLayer(baiduvec);
+
+        var layer = new g2.lys.ElementLayer({map: g2map, id: '001', visible: true, cache:true});
+        g2map.addLayer(layer);
+
+        g2map.on("drag", function (left, top, right, bottom) {
+            // console.log("监听地图拖拽事件:map.on('drag',callback);");
+            var point=g2map.getCenter();
+            console.log(JSON.stringify(g2map.getCenter()))
+            drawPoint(point[0],point[1]);
+        })
+
+        var defaultSymbol = new g2.syms.SimpleMarkersymbol({
+            fillColor: new g2.syms.Color({
+                a: 255,
+                r: 255,
+                g: 255,
+                b: 255
+            }),
+            borderColor: new g2.syms.Color({
+                a: 255,
+                r: 255,
+                g: 0,
+                b: 0
+            }),
+            size: 6
+        });
+
+        document.getElementById("location").onclick= function(){
+            var x=parseFloat(document.getElementById("input_x").value)
+            var y=parseFloat(document.getElementById("input_y").value)
+
+            if(x&&y)
+            {
+                drawPoint(x,y)
+                var point = new g2.geom.Point({x:x,y:y,spatialReference: g2.geom.SpatialReference.EPSG3857});
+                g2map.setCenter(point)
+            }
+        };
+
+        function drawPoint(x,y)
+        {
+            layer.clear();
+            var points=[[x,y]];
+            var pointArr=[];
+            points.forEach(function (p,index) {
+                var point = new g2.geom.Point({
+                    x: p[0],
+                    y: p[1],
+                    spatialReference: g2.geom.SpatialReference.EPSG3857
+                });
+                //g2map.setCenter(point)
+                var ele = new g2.ele.Element({
+                    id:index,
+                    geometry: point,
+                    symbol: defaultSymbol
+                    // tag: data[i]
+                });
+                pointArr.push(ele);
+            })
+
+            layer.addElements(pointArr);
+        }
+
+        drawPoint(point_x,point_y);
+        g2map.zoomTo(18);
+    });
+
+
+</script>
+</body>
+</html>
